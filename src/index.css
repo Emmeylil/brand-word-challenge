@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,47 +6,47 @@
 
 @layer base {
   :root {
-    --background: 270 30% 22%;
-    --foreground: 0 0% 98%;
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
 
-    --card: 270 25% 28%;
-    --card-foreground: 0 0% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
 
-    --popover: 270 25% 28%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 12 80% 65%;
+    --primary: 32 92% 54%; /* Jumia Orange */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 270 20% 35%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11.2%;
 
-    --muted: 270 20% 30%;
-    --muted-foreground: 270 15% 70%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 45 90% 65%;
-    --accent-foreground: 270 30% 15%;
+    --accent: 32 92% 54%;
+    --accent-foreground: 222 47% 11.2%;
 
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 270 20% 40%;
-    --input: 270 20% 35%;
-    --ring: 12 80% 65%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 32 92% 54%;
 
-    --radius: 1rem;
+    --radius: 0.5rem;
 
-    --success: 150 60% 50%;
-    --success-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --success-foreground: 355.7 100% 97.3%;
 
-    --sidebar-background: 270 30% 18%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 12 80% 65%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 20% 30%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 270 20% 35%;
-    --sidebar-ring: 12 80% 65%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
@@ -57,33 +57,32 @@
 
   body {
     @apply bg-background text-foreground font-sans;
-    font-family: 'Nunito', sans-serif;
+    font-family: 'Inter', sans-serif;
   }
 }
 
 @layer utilities {
   .game-gradient {
     background: linear-gradient(
-      135deg,
-      hsl(270 30% 22%) 0%,
-      hsl(280 25% 28%) 50%,
-      hsl(320 20% 25%) 100%
+      180deg,
+      hsl(0 0% 100%) 0%,
+      hsl(210 40% 98%) 100%
     );
   }
 
   .letter-box {
     @apply w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center
       text-lg sm:text-xl font-extrabold uppercase rounded-lg
-      border-2 border-border bg-secondary text-foreground
-      transition-all duration-200;
+      border-2 border-border bg-white text-foreground
+      shadow-sm transition-all duration-200;
   }
 
   .letter-box-filled {
-    @apply border-primary bg-primary/20;
+    @apply border-primary bg-primary/10;
   }
 
   .letter-box-correct {
-    @apply border-green-400 bg-green-400/20 text-green-300;
+    @apply border-success bg-success/10 text-success;
   }
 
   .key-btn {
@@ -102,7 +101,7 @@
 
 @keyframes pop-in {
   0% { transform: scale(0.5); opacity: 0; }
-  70% { transform: scale(1.15); }
+  70% { transform: scale(1.05); }
   100% { transform: scale(1); opacity: 1; }
 }
 
@@ -112,14 +111,9 @@
   40%, 80% { transform: translateX(6px); }
 }
 
-@keyframes confetti-fall {
-  0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-}
-
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 10px hsl(12 80% 65% / 0.3); }
-  50% { box-shadow: 0 0 30px hsl(12 80% 65% / 0.6); }
+  0%, 100% { box-shadow: 0 0 10px hsl(32 92% 54% / 0.2); }
+  50% { box-shadow: 0 0 25px hsl(32 92% 54% / 0.4); }
 }
 
 .animate-pop-in {
