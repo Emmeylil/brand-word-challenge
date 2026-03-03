@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Users, Mail, TrendingUp, Plus, Trash2, ListChecks } from "lucide-react";
+import { Users, Mail, TrendingUp, Plus, Trash2, ListChecks, Download } from "lucide-react";
 import { toast } from "sonner";
 
 interface UserRecord {
@@ -93,15 +93,48 @@ export default function Admin() {
         }
     };
 
+    const handleExportCSV = () => {
+        if (users.length === 0) {
+            toast.error("No player data to export.");
+            return;
+        }
+
+        const headers = ["Name", "Email", "Score"];
+        const csvRows = [
+            headers.join(","),
+            ...users.map(u => `${u.name},${u.email},${u.score}`)
+        ];
+
+        const csvContent = csvRows.join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `jumia_game_players_${new Date().toISOString().split("T")[0]}.csv`);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Player data exported!");
+    };
+
     return (
         <div className="min-h-screen bg-secondary/30 p-4 sm:p-8">
             <div className="max-w-4xl mx-auto space-y-10">
-                <header className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-primary/10">
+                <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl shadow-sm border border-primary/10 gap-4">
                     <div>
                         <h1 className="text-3xl font-black text-primary tracking-tight">Admin Dashboard</h1>
                         <p className="text-muted-foreground font-medium">Manage game rounds and track players</p>
                     </div>
-                    <div className="flex gap-4">
+                    <div className="flex gap-3 w-full sm:w-auto">
+                        <Button
+                            variant="outline"
+                            className="bg-primary/5 hover:bg-primary/10 border-primary/10 font-bold"
+                            onClick={handleExportCSV}
+                        >
+                            <Download className="w-4 h-4 mr-2" />
+                            Export Data
+                        </Button>
                         <div className="bg-primary/5 p-3 px-5 rounded-xl flex items-center gap-3 border border-primary/10">
                             <Users className="text-primary w-5 h-5" />
                             <div>
