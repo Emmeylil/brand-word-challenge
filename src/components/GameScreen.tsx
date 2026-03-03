@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { campaigns, getBadge, type GameRound } from "@/lib/gameData";
+import { campaigns as fallbackCampaigns, getBadge, type GameRound } from "@/lib/gameData";
 import { WordDisplay } from "./WordDisplay";
 import { OnScreenKeyboard } from "./OnScreenKeyboard";
 import { Timer } from "./Timer";
@@ -8,13 +8,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LoginScreen } from "./LoginScreen";
 import { Leaderboard } from "./Leaderboard";
 import { db } from "@/lib/firebase";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp, collection, query, orderBy, getDocs } from "firebase/firestore";
 import { LogOut } from "lucide-react";
 
 type GameState = "playing" | "won" | "lost";
 
 export function GameScreen() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
+  const [rounds, setRounds] = useState<GameRound[]>([]);
+  const [roundsLoading, setRoundsLoading] = useState(true);
   const [roundIndex, setRoundIndex] = useState(0);
   const [guessedLetters, setGuessedLetters] = useState<Set<string>>(new Set());
   const [timeLeft, setTimeLeft] = useState(0);
@@ -23,31 +25,55 @@ export function GameScreen() {
   const [totalWins, setTotalWins] = useState(0);
   const [showIntro, setShowIntro] = useState(true);
 
-  const round: GameRound = campaigns[roundIndex % campaigns.length];
+  // Fetch rounds from Firestore
+  useEffect(() => {
+    const fetchRounds = async () => {
+      try {
+        const q = query(collection(db, "rounds"), orderBy("createdAt", "asc"));
+        const snapshot = await getDocs(q);
+        const fetchedRounds: GameRound[] = [];
+        snapshot.forEach((doc) => {
+          fetchedRounds.push(doc.data() as GameRound);
+        });
+
+        // Use fetched rounds if any exist, otherwise use fallback
+        setRounds(fetchedRounds.length > 0 ? fetchedRounds : fallbackCampaigns);
+      } catch (err) {
+        console.error("Error fetching rounds:", err);
+        setRounds(fallbackCampaigns);
+      } finally {
+        setRoundsLoading(false);
+      }
+    };
+    fetchRounds();
+  }, []);
+
+  const round: GameRound | undefined = rounds[roundIndex % rounds.length];
 
   const resetRound = useCallback((idx: number) => {
-    const r = campaigns[idx % campaigns.length];
+    if (rounds.length === 0) return;
+    const r = rounds[idx % rounds.length];
     setGuessedLetters(new Set());
     setTimeLeft(r.timeLimit);
     setGameState("playing");
     setShake(false);
-  }, []);
+  }, [rounds]);
 
   useEffect(() => {
-    if (showIntro) return;
+    if (showIntro || rounds.length === 0) return;
     resetRound(roundIndex);
-  }, [roundIndex, showIntro, resetRound]);
+  }, [roundIndex, showIntro, resetRound, rounds]);
 
   // Timer
   useEffect(() => {
-    if (gameState !== "playing" || showIntro) return;
+    if (gameState !== "playing" || showIntro || rounds.length === 0) return;
     if (timeLeft <= 0) {
       setGameState("lost");
       return;
     }
     const t = setTimeout(() => setTimeLeft((p) => p - 1), 1000);
     return () => clearTimeout(t);
-  }, [timeLeft, gameState, showIntro]);
+  }, [timeLeft, gameState, showIntro, rounds]);
 
   // Record score to Firestore
   const updateFirestoreScore = async (newScore: number) => {
@@ -70,7 +96,7 @@ export function GameScreen() {
 
   // Check win
   useEffect(() => {
-    if (gameState !== "playing") return;
+    if (gameState !== "playing" || !round) return;
     const wordLetters = new Set(round.word.split(""));
     const revealedLetters = new Set(round.revealedIndices.map((i) => round.word[i]));
     const allFound = [...wordLetters].every(
@@ -86,17 +112,17 @@ export function GameScreen() {
 
   // Keyboard input
   useEffect(() => {
-    if (gameState !== "playing" || showIntro || !user) return;
+    if (gameState !== "playing" || showIntro || !user || rounds.length === 0) return;
     const handler = (e: KeyboardEvent) => {
       const key = e.key.toUpperCase();
       if (/^[A-Z]$/.test(key)) handleGuess(key);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [gameState, showIntro, guessedLetters, user]);
+  }, [gameState, showIntro, guessedLetters, user, rounds]);
 
   const handleGuess = (letter: string) => {
-    if (guessedLetters.has(letter) || gameState !== "playing") return;
+    if (!round || guessedLetters.has(letter) || gameState !== "playing") return;
     const next = new Set(guessedLetters);
     next.add(letter);
     setGuessedLetters(next);
@@ -117,11 +143,19 @@ export function GameScreen() {
     resetRound(0);
   };
 
-  if (loading) return null;
+  if (authLoading || roundsLoading) {
+    return (
+      <div className="min-h-screen game-gradient flex items-center justify-center">
+        <div className="text-primary font-black animate-pulse text-2xl uppercase tracking-widest">Loading...</div>
+      </div>
+    );
+  }
+
   if (!user) return <LoginScreen />;
+  if (rounds.length === 0) return null;
 
   const badge = getBadge(totalWins);
-  const currentRoundNum = (roundIndex % campaigns.length) + 1;
+  const currentRoundNum = (roundIndex % rounds.length) + 1;
 
   if (showIntro) {
     return (
@@ -169,7 +203,7 @@ export function GameScreen() {
             🎉 Brilliant!
           </h2>
           <p className="text-xl font-medium">
-            The word was <span className="text-primary font-bold">{round.word}</span>
+            The word was <span className="text-primary font-bold">{round?.word}</span>
           </p>
           {badge && (
             <div className="inline-block px-5 py-2 rounded-xl bg-primary/10 text-primary font-bold text-sm">
@@ -177,10 +211,10 @@ export function GameScreen() {
             </div>
           )}
           <p className="text-muted-foreground text-sm font-medium">
-            Round {currentRoundNum} / {campaigns.length} · {totalWins} wins
+            Round {currentRoundNum} / {rounds.length} · {totalWins} wins
           </p>
           <div className="flex flex-col gap-3 pt-4">
-            {roundIndex < campaigns.length - 1 ? (
+            {roundIndex < rounds.length - 1 ? (
               <button
                 onClick={nextRound}
                 className="w-full py-4 rounded-xl bg-primary text-primary-foreground font-black text-lg
@@ -216,7 +250,7 @@ export function GameScreen() {
           <div className="text-7xl">⏰</div>
           <h2 className="text-3xl font-black text-destructive">Times Up!</h2>
           <p className="text-xl font-medium">
-            The word was <span className="font-bold text-primary">{round.word}</span>
+            The word was <span className="font-bold text-primary">{round?.word}</span>
           </p>
           <p className="text-muted-foreground text-sm">
             Current session score: <span className="font-bold text-foreground">{totalWins}</span>
@@ -250,7 +284,7 @@ export function GameScreen() {
             <span className="text-primary">play</span>able
           </h1>
           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
-            Round {currentRoundNum} of {campaigns.length}
+            Round {currentRoundNum} of {rounds.length}
           </p>
         </div>
         <div className="text-right">
@@ -264,18 +298,20 @@ export function GameScreen() {
         <div className="text-center space-y-2">
           <p className="text-xs font-black text-primary/60 tracking-widest uppercase">The Hint</p>
           <p className="text-xl sm:text-2xl font-bold text-foreground">
-            {round.hint}
+            {round?.hint}
           </p>
         </div>
 
         {/* Word */}
-        <WordDisplay
-          word={round.word}
-          revealedIndices={round.revealedIndices}
-          guessedLetters={guessedLetters}
-          shake={shake}
-          won={false}
-        />
+        {round && (
+          <WordDisplay
+            word={round.word}
+            revealedIndices={round.revealedIndices}
+            guessedLetters={guessedLetters}
+            shake={shake}
+            won={false}
+          />
+        )}
 
         {/* Keyboard */}
         <div className="w-full max-w-sm">
@@ -288,7 +324,7 @@ export function GameScreen() {
 
         {/* Timer */}
         <div className="w-full max-w-xs mt-4">
-          <Timer timeLeft={timeLeft} totalTime={round.timeLimit} />
+          <Timer timeLeft={timeLeft} totalTime={round?.timeLimit || 40} />
         </div>
       </div>
     </div>
