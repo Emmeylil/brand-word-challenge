@@ -1,4 +1,5 @@
 export interface GameRound {
+  id?: string;
   word: string;
   hint: string;
   revealedIndices: number[];

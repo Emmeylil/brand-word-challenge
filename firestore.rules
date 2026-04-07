@@ -2,9 +2,10 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow anyone to read/write to the leaderboard (scores)
+    // Allow anyone to read the leaderboard (scores). Writes are blocked and handled securely by Cloud Functions.
     match /leaderboard/{document=**} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if false;
     }
     
     // Allow anyone to read/write to the rounds (words/hints)

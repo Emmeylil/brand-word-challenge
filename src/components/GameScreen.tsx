@@ -7,9 +7,11 @@ import { Confetti } from "./Confetti";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoginScreen } from "./LoginScreen";
 import { Leaderboard } from "./Leaderboard";
-import { db } from "@/lib/firebase";
-import { doc, setDoc, getDoc, serverTimestamp, collection, query, orderBy, getDocs } from "firebase/firestore";
+import { db, functions } from "@/lib/firebase";
+import { serverTimestamp, collection, query, orderBy, getDocs } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 import { LogOut } from "lucide-react";
+import { toast } from "sonner";
 
 type GameState = "playing" | "won" | "lost";
 
@@ -33,7 +35,7 @@ export function GameScreen() {
         const snapshot = await getDocs(q);
         const fetchedRounds: GameRound[] = [];
         snapshot.forEach((doc) => {
-          fetchedRounds.push(doc.data() as GameRound);
+          fetchedRounds.push({ id: doc.id, ...doc.data() } as GameRound);
         });
 
         // Use fetched rounds if any exist, otherwise use fallback
@@ -75,22 +77,20 @@ export function GameScreen() {
     return () => clearTimeout(t);
   }, [timeLeft, gameState, showIntro, rounds]);
 
-  // Record score to Firestore
-  const updateFirestoreScore = async (newScore: number) => {
+  // Record score to Firestore via Cloud Functions
+  const updateFirestoreScore = async (roundId: string, guessedLettersArray: string[]) => {
     if (!user) return;
-    const scoreRef = doc(db, "leaderboard", user.email);
     try {
-      const docSnap = await getDoc(scoreRef);
-      if (!docSnap.exists() || docSnap.data().score < newScore) {
-        await setDoc(scoreRef, {
-          name: user.name,
-          email: user.email,
-          score: newScore,
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
+      const verifyWin = httpsCallable(functions, "verifyWin");
+      const result = await verifyWin({ roundId, guessedLetters: guessedLettersArray });
+      const data = result.data as any;
+      if (!data.success) {
+        console.error("Failed to verify win:", data.message);
+        toast.error("Cloud Error: " + data.message);
       }
-    } catch (err) {
-      console.error("Error updating score:", err);
+    } catch (err: any) {
+      console.error("Error updating score via function:", err);
+      toast.error("Failed to update score.");
     }
   };
 
@@ -106,7 +106,7 @@ export function GameScreen() {
       setGameState("won");
       const nextWins = totalWins + 1;
       setTotalWins(nextWins);
-      updateFirestoreScore(nextWins);
+      updateFirestoreScore(round.id || "fallback", Array.from(guessedLetters));
     }
   }, [guessedLetters, round, gameState, totalWins, user]);
 
